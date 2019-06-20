@@ -3,7 +3,7 @@ Yet another (incomplete) 6502 emulator!
 
 This is a hobby project to implement a simple 6502 emulator, I get to spend about 20 minutes on it per year ;-)
 
-The aim is to make it as simple as possible with as few language tricks or dependencies as possible and to have fun while working on it.  Working on it is the Computer Engineer's form of knitting!
+The aim is to make it as simple as possible using very basic techniques with as few language tricks or dependencies as possible and to have fun while working on it.  Working on it is the Computer Engineer's form of knitting!
 
 The emulator is not intended to be cycle accurate.
 
