@@ -17,8 +17,8 @@ I use it like this:
 
 ./burlo.exe <.hex or .prg file>
 
-Next on the to to list is to implement Interrupt support (if I ever get around to it)!
+Next on the to do list is to implement interrupt support (if I ever get around to it)!
 
-I am also working on writing a very simple monitor program in 6502 assembly language to run on it too (BurloMon)
+In the mean time, I am working on writing a very simple monitor program in 6502 assembly language to run on it too (BurloMon)
 
 This project is named after the (once) famous hotel in Dublin called the Burlington where I first was introduced to the Commodore 64.
