@@ -20,3 +20,5 @@ I use it like this:
 Next on the to to list is to implement Interrupt support (if I ever get around to it)!
 
 I am also working on writing a very simple monitor program in 6502 assembly language to run on it too (BurloMon)
+
+This project is named after the (once) famous hotel in Dublin called the Burlington where I first was introduced to the Commodore 64.
