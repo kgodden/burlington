@@ -5,7 +5,12 @@
 // http://nesdev.com/6502_cpu.txt
 // https://sites.google.com/site/6502asembly/
 // http://www.obelisk.me.uk/6502/reference.html
+// https://wiki.nesdev.com/w/index.php/Status_flags
 
+
+// IRQ:
+// https://www.pagetable.com/?p=410
+//
 // Online assembler
 // http://www.cs.otago.ac.nz/cosc243/resources/6502js-master/globalvars.html
 
@@ -33,6 +38,7 @@ char get_key();
 typedef unsigned char reg_t;
 typedef unsigned char byte_t;
 typedef unsigned int moff_t;
+typedef unsigned char line_t;
 
 moff_t pc;   // Program,Counter
 reg_t sp;    // Stack,Pointer
@@ -79,6 +85,8 @@ reg_t* memory;
 
 static bool vram_dirty = false;
 
+line_t IRQ = 0;
+
 // opcodes
 typedef void (*op_t)();
 
@@ -117,6 +125,11 @@ void smem(moff_t addr, reg_t val) {
 }
 
 void push(reg_t val) {
+    if (sp == 0) {
+        printf("Error, Stack underflow!\n");
+        exit(-1);
+    }
+    
     smem(STACK_BASE + sp--, val);
 }
 
@@ -160,26 +173,62 @@ reg_t copy_bit(reg_t src, reg_t dest, reg_t mask) {
     return (dest & ~mask) | (src & mask);
 }
 
+void raise_IRQ(int set_B) {
+
+    // https://www.pagetable.com/?p=410
+
+    if (!(s & I)) {    // Is this correct?
+        push(PCH);
+        push(PCL);
+            
+        push(set_B ? s | B : s);
+        IRQ = 1;
+        
+        reg_t pcl = mem(0xFFFE);
+        reg_t pch = mem(0xFFFF);
+        pc = (pch << 8) | pcl;
+        pf("Raising IRQ, I=%d, B=%d --> 0x%04x\n", s & I, set_B, pc);
+    } else {
+        pf("NOT Raising IRQ, I=%d, B=%d", s & I, set_B);
+    }
+}
+
+
+//
+// The OPCODES
+//
 void brk() {
-    pf("++++++ BRK not implemented\n");
-    // hack
-    exit(1);
+    raise_IRQ(1);
 }
 
 
 void jsr() {
+    // this is may be wrong should push pc - 1!!
     // high byte first    
+    // http://6502.org/tutorials/interrupts.html
     push(pc >> 8);
     push(pc & 0xFF);
     pc = addr;    
 }
 
 void rti() {
-    pf("++++++ RTI not implemented\n");
+    // Must clear I, The interrupt handler sets I to prevent more
+    // IRQ's while servicing this one. I is automatically cleared when we pop
+    // S off the stack (as it would have been 0 to allow an interrupt
+    // occur in the first place!)
+    //
+    reg_t pch = pop();
+    reg_t pcl = pop();
+    s = pop() & ~B;     // Clear B pseudo-flag
+    
+    pc = (pch << 8) | pcl;
+    
 }
 
 void rts() {
-    pc = pop() | (pop() << 8);
+    // this may be wrong, might have to set pc + 1?
+    // http://6502.org/tutorials/interrupts.html
+    pc = (pop() | (pop() << 8));
 }
 
 void nop() {
@@ -538,7 +587,7 @@ void beq() {
 }
 
 void bne() {
-pf("s=%02x\n", s & Z);
+    pf("s=%02x\n", s & Z);
     if ((s & Z) == 0) {
         branch_rel(o);
     }
@@ -650,7 +699,8 @@ void pha() {
 }
 
 void plp() {
-    s = pop();
+    // https://wiki.nesdev.com/w/index.php/Status_flags
+    s = pop() &~ B; // Ignore B
 }
 
 void php() {
@@ -1073,14 +1123,12 @@ void init_6502(const char* path) {
     x = 0;           // X Register
     y = 0;           // Y Register
     o = 0;   
-
+    IRQ = 0;
+    
     init_memory();
     init_stack();
 
     moff_t start = 0x0600;
-    
-    // demo_scene.hex has problems
-    //load_program("fancy.hex", 0x600);
     
     moff_t start_addr = load_program(path, 0x600);
     
@@ -1109,25 +1157,42 @@ void dump_mem(moff_t start) {
     }
 }
 
+void process_IRQ() {
+    // If the IRQ line is high
+    if (IRQ & (s & I)) {
+    
+        // Disable interrupts, will be re-enabled
+        // when s is restored from the stack in RTI
+        s &= ~I;    
+        IRQ = 0;    // is this correct?
+
+        // load interrupt vector and go there
+        reg_t pcl = mem(0xFFFE);
+        reg_t pch = mem(0xFFFF);
+        pc = (pch << 8) | pcl;      
+    }
+}
+
 int next_6502() {
 //pf("--------------------------\n");
     pf("$%04x ", pc); 
     reg_t code = mem(pc++);
-    
-    // For the moment just exit if
-    // we hit brk.
-    if (code == 0x00) {  // brk
-        pf("Have hit BRK\n");
-//        return 0;
-    }
-        
+            
     //pf("code 0x%02x, %s\n", code, get_op_name(code));
     pf("%s ", get_op_name(code));
     o = (get_addr_mode(code))();
     (get_op(code))();
-    
+
+    process_IRQ();
     // here here debuf
     //pf("A=$%02x,X=$%02x,Y=$%02x,PC=$%04x,$0=$%02x,$1=$%02x,$2=$%02x,$3=$%02x\n", A, x, y, pc, mem(0), mem(1), mem(2), mem(3));
+
+    // For the moment just exit if
+    // we hit brk.
+    if (code == 0x00) {  // brk
+        pf("Have hit BRK\n");
+        //return 0;
+    }
     
     return 1;
 }

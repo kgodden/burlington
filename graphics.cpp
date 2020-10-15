@@ -100,8 +100,10 @@ static char cur_keypress = 0;
 char get_key() {
     char c = cur_keypress;
     cur_keypress = 0;
+    /*
     if (c != 0)
-     printf("!%c", c);
+     printf("$%x", (int)c);
+     */
     return c;
     
 }
@@ -154,21 +156,24 @@ int main(int argc, char** argv) {
     clock_t start = clock();
     
     while (1) {
-        SDL_PollEvent(&event);
-
-     //   printf("--%d\n", event.type);
-        if (event.type == SDL_QUIT)
-            break;
-            
-        if (event.type == SDL_KEYDOWN) {
-            cur_keypress = getUnicodeValue(event.key);
-            //printf("kkkkkey %d\n", cur_keypress);
-        }
-
-        if (event.type == SDL_KEYUP) {
-             cur_keypress = 0;
-        }
+    
         
+        while (SDL_PollEvent(&event)) {
+
+            //printf("--%d\n", event.type);
+            if (event.type == SDL_QUIT)
+                break;
+                
+            if (event.type == SDL_KEYDOWN) {
+                cur_keypress = getUnicodeValue(event.key);
+                //printf("kkkkkey %d\n", cur_keypress);
+            }
+
+            if (event.type == SDL_KEYUP) {
+                 cur_keypress = 0;
+            }
+       }
+       
        //if (ii < 10)  
         if (!next_6502())
             break;
